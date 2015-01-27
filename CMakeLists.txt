@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 2.8)
+
+project(bf)
+set(CMAKE_BUILD_TYPE Release)
+
+if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+    message(FATAL_ERROR "In-source builds are not allowed.")
+endif()
+
+if(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+endif()
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_library(bf SHARED src/bf.cpp)
+
+add_executable(bfi src/bfi.cpp)
+target_link_libraries(bfi bf)
