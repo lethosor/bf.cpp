@@ -14,6 +14,7 @@ int main() {
         ss << line << endl;
     bf_string bytecode = bf_compile(ss.str());
     bf_vm vm = bf_vm(1024);
+    //bf_disassemble(bytecode, cout);
     bf_run(vm, bytecode);
     return 0;
 }

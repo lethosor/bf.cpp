@@ -1,8 +1,10 @@
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <string.h>
 #include <stdint.h>
+#include <vector>
 
 typedef std::basic_string<uint32_t> bf_string;
 
@@ -21,12 +23,17 @@ struct bf_vm {
     uint8_t* mem;
     bf_vm(uint32_t _mem_size) {
         mem_size = _mem_size;
+        mem_ptr = 0;
         mem = new uint8_t[mem_size];
+        memset(mem, 0, sizeof(mem));
     }
     ~bf_vm() {
         delete[] mem;
     }
 };
 
-bf_string bf_compile (std::string src);
-void bf_run (bf_vm& vm, bf_string bytecode);
+extern "C" {
+    bf_string bf_compile (std::string src);
+    void bf_run (bf_vm& vm, bf_string bytecode);
+    void bf_disassemble (bf_string bytecode, std::ostream& out);
+}
