@@ -25,7 +25,7 @@ struct bf_vm {
         mem_size = _mem_size;
         mem_ptr = 0;
         mem = new uint8_t[mem_size];
-        memset(mem, 0, sizeof(mem));
+        memset(mem, 0, sizeof(uint8_t) * mem_size);
     }
     ~bf_vm() {
         delete[] mem;
