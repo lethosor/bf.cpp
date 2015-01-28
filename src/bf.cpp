@@ -1,5 +1,17 @@
 #include "bf.h"
 
+bool bf_read_file_contents (std::string path, std::string& dest) {
+    std::ifstream input(path);
+    if (!input.is_open())
+        return false;
+    input.seekg(0, std::ios_base::end);
+    dest.resize(input.tellg());
+    input.seekg(0, std::ios_base::beg);
+    input.read(&dest[0], dest.size());
+    input.close();
+    return true;
+}
+
 bf_string bf_compile (std::string src) {
     bf_string out;
     out.resize(2 * src.size());
@@ -67,10 +79,11 @@ bf_string bf_compile (std::string src) {
                 src_idx++;
                 break;
             case '.':
+            case ',':
                 count = 1;
-                while (src[++src_idx] == '.')
+                while (src[++src_idx] == ch)
                     count++;
-                out[out_idx++] = INST_PUTCH;
+                out[out_idx++] = (ch == '.') ? INST_PUTCH : INST_GETCH;
                 out[out_idx++] = count;
                 break;
             default:
@@ -119,9 +132,14 @@ void bf_run (bf_vm& vm, bf_string bytecode) {
                 break;
             case INST_PUTCH:
                 for (uint32_t count = 0; count < arg; count++) {
-                    fprintf(stdout, "%c", vm.mem[vm.mem_ptr]);
+                    std::cout << (unsigned char)vm.mem[vm.mem_ptr];
                 }
-                fflush(stdout);
+                std::cout.flush();
+                break;
+            case INST_GETCH:
+                for (uint32_t count = 0; count < arg; count++) {
+                    vm.mem[vm.mem_ptr] = std::cin.get();
+                }
                 break;
             default:
                 std::cerr << "warn: unrecognized instruction: " << instruction << std::endl;

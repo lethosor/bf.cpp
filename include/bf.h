@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <sstream>
@@ -33,6 +34,7 @@ struct bf_vm {
 };
 
 extern "C" {
+    bool bf_read_file_contents (std::string path, std::string& dest);
     bf_string bf_compile (std::string src);
     void bf_run (bf_vm& vm, bf_string bytecode);
     void bf_disassemble (bf_string bytecode, std::ostream& out);
