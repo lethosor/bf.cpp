@@ -20,7 +20,23 @@ int main (int argc, const char** argv) {
     }
     bf_string bytecode = bf_compile(src);
     bf_vm vm = bf_vm(1024);
-    //bf_disassemble(bytecode, cout);
+    vm.eof_flag = BF_EOF_NO_CHANGE;
+    for (int i = 2; i < argc; i++) {
+        string arg(argv[i]);
+        if (arg.find("--eof=") != string::npos) {
+            arg = arg.substr(arg.find("=") + 1);
+            if (arg == "0")
+                vm.eof_flag = BF_EOF_0;
+            else if (arg == "-1")
+                vm.eof_flag = BF_EOF_NEG1;
+            else if (arg == "n" || arg == "nc" || arg == "no-change")
+                vm.eof_flag = BF_EOF_NO_CHANGE;
+            else {
+                cerr << "--eof must be one of 0, -1, n|nc|no-change" << endl;
+                return 1;
+            }
+        }
+    }
     bf_run(vm, bytecode);
     return 0;
 }

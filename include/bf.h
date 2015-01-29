@@ -18,11 +18,19 @@ enum bf_instruction : uint32_t {
     INST_PUTCH
 };
 
+enum bf_eof_flag : uint8_t {
+    BF_EOF_0 = 0,
+    BF_EOF_NEG1,
+    BF_EOF_NO_CHANGE
+};
+
 struct bf_vm {
     uint32_t mem_size;
     uint32_t mem_ptr;
     uint8_t* mem;
+    bf_eof_flag eof_flag;
     bf_vm(uint32_t _mem_size) {
+        eof_flag = BF_EOF_NO_CHANGE;
         mem_size = _mem_size;
         mem_ptr = 0;
         mem = new uint8_t[mem_size];

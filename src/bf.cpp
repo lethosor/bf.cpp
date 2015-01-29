@@ -138,7 +138,15 @@ void bf_run (bf_vm& vm, bf_string bytecode) {
                 break;
             case INST_GETCH:
                 for (uint32_t count = 0; count < arg; count++) {
-                    vm.mem[vm.mem_ptr] = std::cin.get();
+                    int ch = std::cin.get();
+                    if (ch != -1)
+                        vm.mem[vm.mem_ptr] = ch;
+                    else {
+                        if (vm.eof_flag == BF_EOF_0)
+                            vm.mem[vm.mem_ptr] = 0;
+                        else if (vm.eof_flag == BF_EOF_NEG1)
+                            vm.mem[vm.mem_ptr] = -1;
+                    }
                 }
                 break;
             default:
