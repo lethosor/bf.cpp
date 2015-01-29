@@ -67,6 +67,44 @@ bf_string bf_compile (std::string src) {
                 out[out_idx++] = (uint32_t)mem_delta;
                 break;
             case '[':
+                {
+                    // Optimize [-]+++ patterns
+                    delta = 0;  // Keep track of delta to avoid interpreting [+-] as [-]
+                    bool optimize_set = false;
+                    size_t peek_idx = src_idx + 1;
+                    for ( ; peek_idx < src.size(); peek_idx++) {
+                        switch (src[peek_idx]) {
+                            case '+':
+                                delta++;
+                                break;
+                            case '-':
+                                delta--;
+                                break;
+                            case ']':
+                                optimize_set = true;
+                                goto peek_done;
+                            default:
+                                goto peek_done;
+                        }
+                    }
+                    peek_done:
+                    if (optimize_set && delta) {
+                        int8_t value = 0;
+                        peek_idx++;  // Skip trailing ]
+                        for ( ; peek_idx < src.size(); peek_idx++) {
+                            if (src[peek_idx] == '+')
+                                value++;
+                            else if (src[peek_idx] == '-')
+                                value--;
+                            else
+                                break;
+                        }
+                        out[out_idx++] = INST_SET;
+                        out[out_idx++] = value;
+                        src_idx = peek_idx;
+                        break;
+                    }
+                }
                 out[out_idx] = INST_JZ;
                 out[out_idx + 1] = out_idx;
                 out_idx += 2;
@@ -149,6 +187,9 @@ void bf_run (bf_vm& vm, bf_string bytecode) {
                     }
                 }
                 break;
+            case INST_SET:
+                vm.mem[vm.mem_ptr] = arg;
+                break;
             default:
                 std::cerr << "warn: unrecognized instruction: " << instruction << std::endl;
                 break;
@@ -167,6 +208,7 @@ void bf_disassemble (bf_string bytecode, std::ostream& out) {
         imap[INST_JNZ] = "JNZ";
         imap[INST_GETCH] = "GETCH";
         imap[INST_PUTCH] = "PUTCH";
+        imap[INST_SET] = "SET";
     }
     for (size_t i = 0; i < bytecode.size(); i += 2) {
         out << "instruction " << (int)i << ": ";
