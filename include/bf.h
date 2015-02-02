@@ -15,7 +15,8 @@ enum bf_instruction : uint32_t {
     INST_JZ,
     INST_JNZ,
     INST_GETCH,
-    INST_PUTCH
+    INST_PUTCH,
+    INST_SET
 };
 
 enum bf_eof_flag : uint8_t {

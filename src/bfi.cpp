@@ -36,6 +36,10 @@ int main (int argc, const char** argv) {
                 return 1;
             }
         }
+        else if (arg.find("--disassemble") != string::npos) {
+            bf_disassemble(bytecode, cout);
+            return 0;
+        }
     }
     bf_run(vm, bytecode);
     return 0;
