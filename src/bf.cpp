@@ -72,7 +72,7 @@ bf_string bf_compile (std::string src) {
                     delta = 0;  // Keep track of delta to avoid interpreting [+-] as [-]
                     bool optimize_set = false;
                     size_t peek_idx = src_idx + 1;
-                    for ( ; peek_idx < src.size(); peek_idx++) {
+                    while (peek_idx < src.size()) {
                         switch (src[peek_idx]) {
                             case '+':
                                 delta++;
@@ -86,6 +86,7 @@ bf_string bf_compile (std::string src) {
                             default:
                                 goto peek_done;
                         }
+                        peek_idx++;
                     }
                     peek_done:
                     if (optimize_set && delta) {
@@ -150,15 +151,12 @@ void bf_run (bf_vm& vm, bf_string bytecode) {
     for (size_t i = 0; i < bytecode.size(); i += 2) {
         uint32_t instruction = bytecode[i];
         uint32_t arg = bytecode[i + 1];
-        //printf("inst %i = %i, %i | mp=%i mc=%i\n", (int)i, instruction, arg, vm.mem_ptr, vm.mem[vm.mem_ptr]);
         switch (instruction) {
             case INST_INC:
                 vm.mem[vm.mem_ptr] += (uint8_t)arg;
                 break;
             case INST_MOVE:
-                //printf("mp: %i + %i -> ", vm.mem_ptr, arg);
                 vm.mem_ptr = (vm.mem_ptr + arg) % vm.mem_size;
-                //printf("%i\n", vm.mem_ptr);
                 break;
             case INST_JZ:
                 if (!vm.mem[vm.mem_ptr])
