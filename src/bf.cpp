@@ -51,8 +51,10 @@ bf_bytecode* bf_compile (std::string src) {
                     if (ch == '+') delta++;
                     else if (ch == '-') delta--;
                 }
-                out[out_idx++] = INST_INC;
-                out[out_idx++] = (uint32_t)delta;
+                if (delta) {
+                    out[out_idx++] = INST_INC;
+                    out[out_idx++] = (uint32_t)delta;
+                }
                 break;
             case '<':
             case '>':
@@ -62,8 +64,10 @@ bf_bytecode* bf_compile (std::string src) {
                     if (ch == '>') mem_delta++;
                     else if (ch == '<') mem_delta--;
                 }
-                out[out_idx++] = INST_MOVE;
-                out[out_idx++] = (uint32_t)mem_delta;
+                if (mem_delta) {
+                    out[out_idx++] = INST_MOVE;
+                    out[out_idx++] = (uint32_t)mem_delta;
+                }
                 break;
             case '[':
                 {
