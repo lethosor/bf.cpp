@@ -1,0 +1,3 @@
+[submodule "depends/tclap"]
+	path = depends/tclap
+	url = git://git.code.sf.net/p/tclap/code
