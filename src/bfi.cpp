@@ -18,7 +18,7 @@ int main (int argc, const char** argv) {
         cerr << "Could not read from file: " << argv[1] << endl;
         return 2;
     }
-    bf_string bytecode = bf_compile(src);
+    bf_bytecode* bytecode = bf_compile(src);
     bf_vm vm = bf_vm(1024);
     vm.eof_flag = BF_EOF_NO_CHANGE;
     for (int i = 2; i < argc; i++) {
@@ -42,5 +42,6 @@ int main (int argc, const char** argv) {
         }
     }
     bf_run(vm, bytecode);
+    delete bytecode;
     return 0;
 }

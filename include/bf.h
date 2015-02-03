@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <vector>
 
-typedef std::basic_string<uint32_t> bf_string;
+typedef uint32_t bf_op;
 
 enum bf_instruction : uint32_t {
     INST_INC = 0,
@@ -42,9 +42,22 @@ struct bf_vm {
     }
 };
 
+struct bf_bytecode {
+    size_t length;
+    bf_op* contents;
+    bf_bytecode (size_t _length) {
+        length = _length;
+        contents = new bf_op[length];
+        memset(contents, 0, sizeof(bf_op) * length);
+    }
+    ~bf_bytecode() {
+        delete[] contents;
+    }
+};
+
 extern "C" {
     bool bf_read_file_contents (std::string path, std::string& dest);
-    bf_string bf_compile (std::string src);
-    void bf_run (bf_vm& vm, bf_string bytecode);
-    void bf_disassemble (bf_string bytecode, std::ostream& out);
+    bf_bytecode* bf_compile (std::string src);
+    void bf_run (bf_vm& vm, bf_bytecode* bytecode);
+    void bf_disassemble (bf_bytecode* bytecode, std::ostream& out);
 }

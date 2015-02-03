@@ -12,9 +12,8 @@ bool bf_read_file_contents (std::string path, std::string& dest) {
     return true;
 }
 
-bf_string bf_compile (std::string src) {
-    bf_string out;
-    out.resize(2 * src.size());
+bf_bytecode* bf_compile (std::string src) {
+    bf_op* out = new bf_op[2 * src.size()];
     uint8_t delta;
     uint32_t mem_delta;
     uint32_t count;
@@ -101,7 +100,7 @@ bf_string bf_compile (std::string src) {
                                 break;
                         }
                         out[out_idx++] = INST_SET;
-                        out[out_idx++] = value;
+                        out[out_idx++] = (uint32_t)value;
                         src_idx = peek_idx;
                         break;
                     }
@@ -130,9 +129,9 @@ bf_string bf_compile (std::string src) {
                 break;
         }
     }
-    out.resize(out_idx);
+    size_t out_size = out_idx;
     std::vector<uint32_t> loop_stack;
-    for (size_t i = 0; i < out.size(); i += 2) {
+    for (size_t i = 0; i < out_size; i += 2) {
         if (out[i] == INST_JZ)
             loop_stack.push_back((uint32_t)i);
         else if (out[i] == INST_JNZ) {
@@ -144,13 +143,15 @@ bf_string bf_compile (std::string src) {
             }
         }
     }
-    return out;
+    bf_bytecode* bytecode = new bf_bytecode(out_size);
+    memcpy(bytecode->contents, out, out_size * sizeof(bf_op));
+    return bytecode;
 }
 
-void bf_run (bf_vm& vm, bf_string bytecode) {
-    for (size_t i = 0; i < bytecode.size(); i += 2) {
-        uint32_t instruction = bytecode[i];
-        uint32_t arg = bytecode[i + 1];
+void bf_run (bf_vm& vm, bf_bytecode* bytecode) {
+    for (size_t i = 0; i < bytecode->length; i += 2) {
+        uint32_t instruction = bytecode->contents[i];
+        uint32_t arg = bytecode->contents[i + 1];
         switch (instruction) {
             case INST_INC:
                 vm.mem[vm.mem_ptr] += (uint8_t)arg;
@@ -195,7 +196,7 @@ void bf_run (bf_vm& vm, bf_string bytecode) {
     }
 }
 
-void bf_disassemble (bf_string bytecode, std::ostream& out) {
+void bf_disassemble (bf_bytecode* bytecode, std::ostream& out) {
     static std::map<uint32_t, std::string> imap;
     if (!imap.size()) {
         imap[INST_INC]   = "INC  ";
@@ -206,11 +207,11 @@ void bf_disassemble (bf_string bytecode, std::ostream& out) {
         imap[INST_PUTCH] = "PUTCH";
         imap[INST_SET]   = "SET  ";
     }
-    for (size_t i = 0; i < bytecode.size(); i += 2) {
+    for (size_t i = 0; i < bytecode->length; i += 2) {
         out << "instruction " << (int)i << ": ";
-        uint32_t instruction = bytecode[i],
-            arg = bytecode[i + 1];
-        out << imap[bytecode[i]] << " (" << (int32_t)bytecode[i + 1] << "):\t";
+        uint32_t instruction = bytecode->contents[i],
+            arg = bytecode->contents[i + 1];
+        out << imap[bytecode->contents[i]] << " (" << (int32_t)bytecode->contents[i + 1] << "):\t";
         switch (instruction) {
             case INST_SET:
                 out << "[-]";
