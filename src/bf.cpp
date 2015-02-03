@@ -1,15 +1,20 @@
 #include "bf.h"
 
-bool bf_read_file_contents (std::string path, std::string& dest) {
-    std::ifstream input(path);
-    if (!input.is_open())
-        return false;
-    input.seekg(0, std::ios_base::end);
-    dest.resize(input.tellg());
-    input.seekg(0, std::ios_base::beg);
-    input.read(&dest[0], dest.size());
-    input.close();
-    return true;
+char* bf_read_file_contents (const char* path) {
+    char* out = NULL;
+    long length = 0;
+    FILE* f = fopen(path, "rb");
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        length = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        out = (char*)malloc(length * sizeof(char));
+        if (out) {
+            fread(out, 1, length, f);
+        }
+        fclose(f);
+    }
+    return out;
 }
 
 bf_bytecode* bf_compile (std::string src) {

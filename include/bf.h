@@ -5,6 +5,7 @@
 #include <string>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <vector>
 
 typedef uint32_t bf_op;
@@ -56,7 +57,7 @@ struct bf_bytecode {
 };
 
 extern "C" {
-    bool bf_read_file_contents (std::string path, std::string& dest);
+    char* bf_read_file_contents (const char* path);
     bf_bytecode* bf_compile (std::string src);
     void bf_run (bf_vm& vm, bf_bytecode* bytecode);
     void bf_disassemble (bf_bytecode* bytecode, std::ostream& out);

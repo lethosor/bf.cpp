@@ -1,5 +1,7 @@
 #include "bf.h"
 
+#include "tclap/CmdLine.h"
+
 using std::cerr;
 using std::cin;
 using std::cout;
@@ -7,41 +9,50 @@ using std::endl;
 using std::getline;
 using std::string;
 using std::stringstream;
+using std::vector;
 
 int main (int argc, const char** argv) {
-    if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " path_to_program" << endl;
-        return 1;
+    using namespace TCLAP;
+    bool disassemble = false;
+    int mem_size;
+    string path, eof;
+    try {
+        CmdLine cmd("Brainfuck interpreter", ' ', "0.1");
+        UnlabeledValueArg<string> path_arg("path", "Path to file", true, "", "Path to file", cmd);
+        SwitchArg disassemble_arg("", "disassemble", "Dump bytecode", cmd, false);
+        vector<string> eof_flags;
+        eof_flags.push_back("0");
+        eof_flags.push_back("-1");
+        eof_flags.push_back("n");
+        eof_flags.push_back("nc");
+        eof_flags.push_back("no-change");
+        ValuesConstraint<string> eof_constraint(eof_flags);
+        ValueArg<string> eof_arg("", "eof", "EOF behavior", false, "no-change", &eof_constraint, cmd);
+        ValueArg<int> mem_arg("m", "mem", "Memory size", false, 1024, "Memory size", cmd);
+        cmd.parse(argc, argv);
+        path = path_arg.getValue();
+        disassemble = disassemble_arg.getValue();
+        eof = eof_arg.getValue();
+        mem_size = mem_arg.getValue();
     }
-    std::string src;
-    if (!bf_read_file_contents(argv[1], src)) {
-        cerr << "Could not read from file: " << argv[1] << endl;
+    catch (ArgException &e) {
+        cerr << "error (" << e.argId() << "): " << e.error() << endl;
         return 2;
     }
-    bf_bytecode* bytecode = bf_compile(src);
-    bf_vm vm = bf_vm(1024);
-    vm.eof_flag = BF_EOF_NO_CHANGE;
-    for (int i = 2; i < argc; i++) {
-        string arg(argv[i]);
-        if (arg.find("--eof=") != string::npos) {
-            arg = arg.substr(arg.find("=") + 1);
-            if (arg == "0")
-                vm.eof_flag = BF_EOF_0;
-            else if (arg == "-1")
-                vm.eof_flag = BF_EOF_NEG1;
-            else if (arg == "n" || arg == "nc" || arg == "no-change")
-                vm.eof_flag = BF_EOF_NO_CHANGE;
-            else {
-                cerr << "--eof must be one of 0, -1, n|nc|no-change" << endl;
-                return 1;
-            }
-        }
-        else if (arg.find("--disassemble") != string::npos) {
-            bf_disassemble(bytecode, cout);
-            return 0;
-        }
+    char* src = bf_read_file_contents(path.c_str());
+    if (!src) {
+        cerr << "Could not read from file: " << path << endl;
+        return 1;
     }
-    bf_run(vm, bytecode);
+    bf_bytecode* bytecode = bf_compile(src);
+    bf_vm vm = bf_vm(mem_size);
+    vm.eof_flag = (eof == "0") ? BF_EOF_0 : ((eof == "-1") ? BF_EOF_NEG1 : BF_EOF_NO_CHANGE);
+    if (disassemble) {
+        bf_disassemble(bytecode, cout);
+    }
+    else {
+        bf_run(vm, bytecode);
+    }
     delete bytecode;
     return 0;
 }
