@@ -328,11 +328,15 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
             imap.find(instruction) != imap.end() ? imap[instruction] : "?????");
         switch (instruction) {
             case INST_SET:
+                BC_READ_INC(contents, uint8_t, *arg);
+                fprintf(out, "(%i) ", *(uint8_t*)arg);
                 fprintf(out, "[-]");
                 // fallthru
             case INST_INC:
-                BC_READ_INC(contents, uint8_t, *arg);
-                fprintf(out, "(%i) ", *(uint8_t*)arg);
+                if (instruction != INST_SET) {
+                    BC_READ_INC(contents, uint8_t, *arg);
+                    fprintf(out, "(%i) ", *(uint8_t*)arg);
+                }
                 if (*(uint8_t*)arg <= 128) {
                     for (uint8_t i = 0; i < *arg; i++)
                         fprintf(out, "+");
