@@ -8,8 +8,6 @@
 #include <stdio.h>
 #include <vector>
 
-typedef uint32_t bf_op;
-
 enum bf_instruction : uint32_t {
     INST_INC = 0,
     INST_MOVE,
@@ -45,16 +43,22 @@ struct bf_vm {
 
 struct bf_bytecode {
     size_t length;
-    bf_op* contents;
+    uint8_t* contents;
     bf_bytecode (size_t _length) {
         length = _length;
-        contents = new bf_op[length];
-        memset(contents, 0, sizeof(bf_op) * length);
+        contents = new uint8_t[length];
+        memset(contents, 0, sizeof(uint8_t) * length);
     }
     ~bf_bytecode() {
         delete[] contents;
     }
 };
+
+#define BC_INC(ptr, delta) ptr = (uint8_t*)ptr + delta
+#define BC_READ(ptr, type, dest) dest = *((type*)ptr)
+#define BC_READ_INC(ptr, type, dest) BC_READ(ptr, type, dest); BC_INC(ptr, sizeof(type))
+#define BC_WRITE(ptr, type, value) *((type*)ptr) = value
+#define BC_WRITE_INC(ptr, type, value) BC_WRITE(ptr, type, value); BC_INC(ptr, sizeof(type))
 
 extern "C" {
     char* bf_read_file_contents (const char* path);
@@ -81,7 +85,8 @@ char* bf_read_file_contents (const char* path) {
 }
 
 bf_bytecode* bf_compile (std::string src) {
-    bf_op* out = new bf_op[2 * src.size()];
+    uint8_t* out = new uint8_t[8 * src.size()];
+    uint8_t* out_start = out;
     uint8_t delta;
     uint32_t mem_delta;
     uint32_t count;
@@ -120,8 +125,8 @@ bf_bytecode* bf_compile (std::string src) {
                     else if (ch == '-') delta--;
                 }
                 if (delta) {
-                    out[out_idx++] = INST_INC;
-                    out[out_idx++] = (uint32_t)delta;
+                    BC_WRITE_INC(out, bf_instruction, INST_INC);
+                    BC_WRITE_INC(out, uint8_t, delta);
                 }
                 break;
             case '<':
@@ -133,8 +138,8 @@ bf_bytecode* bf_compile (std::string src) {
                     else if (ch == '<') mem_delta--;
                 }
                 if (mem_delta) {
-                    out[out_idx++] = INST_MOVE;
-                    out[out_idx++] = (uint32_t)mem_delta;
+                    BC_WRITE_INC(out, bf_instruction, INST_MOVE);
+                    BC_WRITE_INC(out, uint32_t, mem_delta);
                 }
                 break;
             case '[':
@@ -171,21 +176,19 @@ bf_bytecode* bf_compile (std::string src) {
                             else
                                 break;
                         }
-                        out[out_idx++] = INST_SET;
-                        out[out_idx++] = (uint32_t)value;
+                        BC_WRITE_INC(out, bf_instruction, INST_SET);
+                        BC_WRITE_INC(out, uint8_t, value);
                         src_idx = peek_idx;
                         break;
                     }
                 }
-                out[out_idx] = INST_JZ;
-                out[out_idx + 1] = out_idx;
-                out_idx += 2;
+                BC_WRITE_INC(out, bf_instruction, INST_JZ);
+                BC_WRITE_INC(out, uint32_t, 0);
                 src_idx++;
                 break;
             case ']':
-                out[out_idx] = INST_JNZ;
-                out[out_idx + 1] = out_idx;
-                out_idx += 2;
+                BC_WRITE_INC(out, bf_instruction, INST_JNZ);
+                BC_WRITE_INC(out, uint32_t, 0);
                 src_idx++;
                 break;
             case '.':
@@ -193,60 +196,90 @@ bf_bytecode* bf_compile (std::string src) {
                 count = 1;
                 while (src[++src_idx] == ch)
                     count++;
-                out[out_idx++] = (ch == '.') ? INST_PUTCH : INST_GETCH;
-                out[out_idx++] = count;
+                BC_WRITE_INC(out, bf_instruction, (ch == '.') ? INST_PUTCH : INST_GETCH);
+                BC_WRITE_INC(out, uint32_t, count);
                 break;
             default:
                 src_idx++;
                 break;
         }
     }
-    size_t out_size = out_idx;
+    size_t out_size = out - out_start;
     std::vector<uint32_t> loop_stack;
-    for (size_t i = 0; i < out_size; i += 2) {
-        if (out[i] == INST_JZ)
-            loop_stack.push_back((uint32_t)i);
-        else if (out[i] == INST_JNZ) {
-            uint32_t size = (uint32_t)loop_stack.size();
-            if (size) {
-                out[i + 1] = (uint32_t)loop_stack[size - 1];
-                out[loop_stack[size - 1] + 1] = (uint32_t)i;
-                loop_stack.resize(size - 1);
-            }
+    out = out_start;
+    while (out < out_start + out_size) {
+        uint32_t i = out - out_start;
+        bf_instruction instruction;
+        uint32_t size;
+        BC_READ_INC(out, bf_instruction, instruction);
+        switch (instruction) {
+            case INST_JZ:
+                loop_stack.push_back(i);
+                BC_INC(out, sizeof(uint32_t));
+                break;
+            case INST_JNZ:
+                size = (uint32_t)loop_stack.size();
+                if (size) {
+                    *((uint32_t*)(out_start + loop_stack[size - 1]) + 1) = i;
+                    BC_WRITE_INC(out, uint32_t, loop_stack[size - 1]);
+                    loop_stack.resize(size - 1);
+                }
+                else {
+                    std::cerr << "unexpected end loop" << std::endl;
+                    return NULL;
+                }
+                break;
+            case INST_INC:
+            case INST_SET:
+                BC_INC(out, sizeof(uint8_t));
+                break;
+            default:
+                BC_INC(out, sizeof(uint32_t));
+                break;
         }
     }
     bf_bytecode* bytecode = new bf_bytecode(out_size);
-    memcpy(bytecode->contents, out, out_size * sizeof(bf_op));
+    memcpy(bytecode->contents, out_start, out_size * sizeof(uint8_t));
     return bytecode;
 }
 
 void bf_run (bf_vm& vm, bf_bytecode* bytecode) {
-    for (size_t i = 0; i < bytecode->length; i += 2) {
-        uint32_t instruction = bytecode->contents[i];
-        uint32_t arg = bytecode->contents[i + 1];
+    uint8_t* contents = bytecode->contents;
+    uint8_t* contents_start = contents;
+    uint8_t* contents_end = contents + bytecode->length;
+    uint32_t instruction;
+    uint32_t* arg = new uint32_t;
+    while (contents != contents_end) {
+        BC_READ_INC(contents, bf_instruction, instruction);
         switch (instruction) {
             case INST_INC:
-                vm.mem[vm.mem_ptr] += (uint8_t)arg;
+                BC_READ_INC(contents, uint8_t, *arg);
+                vm.mem[vm.mem_ptr] += *(uint8_t*)arg;
                 break;
             case INST_MOVE:
-                vm.mem_ptr = (vm.mem_ptr + arg) % vm.mem_size;
+                BC_READ_INC(contents, uint32_t, *arg);
+                vm.mem_ptr = (vm.mem_ptr + *arg) % vm.mem_size;
                 break;
             case INST_JZ:
+                BC_READ_INC(contents, uint32_t, *arg);
                 if (!vm.mem[vm.mem_ptr])
-                    i = arg;
+                    contents = contents_start + *arg;
                 break;
             case INST_JNZ:
+                BC_READ_INC(contents, uint32_t, *arg);
                 if (vm.mem[vm.mem_ptr])
-                    i = arg;
+                    contents = contents_start + *arg;
                 break;
             case INST_PUTCH:
-                for (uint32_t count = 0; count < arg; count++) {
+                BC_READ_INC(contents, uint32_t, *arg);
+                for (uint32_t count = 0; count < *arg; count++) {
                     std::cout << (unsigned char)vm.mem[vm.mem_ptr];
                 }
                 std::cout.flush();
                 break;
             case INST_GETCH:
-                for (uint32_t count = 0; count < arg; count++) {
+                BC_READ_INC(contents, uint32_t, *arg);
+                for (uint32_t count = 0; count < *arg; count++) {
                     int ch = std::cin.get();
                     if (ch != -1)
                         vm.mem[vm.mem_ptr] = ch;
@@ -259,17 +292,19 @@ void bf_run (bf_vm& vm, bf_bytecode* bytecode) {
                 }
                 break;
             case INST_SET:
-                vm.mem[vm.mem_ptr] = arg;
+                BC_READ_INC(contents, uint8_t, *arg);
+                vm.mem[vm.mem_ptr] = *(uint8_t*)arg;
                 break;
             default:
                 std::cerr << "warn: unrecognized instruction: " << instruction << std::endl;
+                contents++;
                 break;
         }
     }
 }
 
-void bf_disassemble (bf_bytecode* bytecode, std::ostream& out) {
-    static std::map<uint32_t, std::string> imap;
+void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
+    static std::map<uint32_t, const char*> imap;
     if (!imap.size()) {
         imap[INST_INC]   = "INC  ";
         imap[INST_MOVE]  = "MOVE ";
@@ -279,48 +314,59 @@ void bf_disassemble (bf_bytecode* bytecode, std::ostream& out) {
         imap[INST_PUTCH] = "PUTCH";
         imap[INST_SET]   = "SET  ";
     }
-    for (size_t i = 0; i < bytecode->length; i += 2) {
-        out << "instruction " << (int)i << ": ";
-        uint32_t instruction = bytecode->contents[i],
-            arg = bytecode->contents[i + 1];
-        out << imap[bytecode->contents[i]] << " (" << (int32_t)bytecode->contents[i + 1] << "):\t";
+    uint8_t* contents_start = bytecode->contents;
+    uint8_t* contents = contents_start;
+    uint32_t instruction = 0;
+    uint32_t* arg = new uint32_t;
+    int i = 1;
+    while (contents < contents_start + bytecode->length) {
+        fprintf(out, "%p\n", contents);
+        fprintf(out, "inst #%-3i idx=%-4li: ", i++, contents - contents_start);
+        BC_READ_INC(contents, bf_instruction, instruction);
+        fprintf(out, "%02i %s:   ", instruction,
+            imap.find(instruction) != imap.end() ? imap[instruction] : "?????");
         switch (instruction) {
             case INST_SET:
-                out << "[-]";
+                fprintf(out, "[-]");
                 // fallthru
             case INST_INC:
-                if (arg <= 128) {
-                    for (uint8_t i = 0; i < arg; i++)
-                        out << '+';
+                BC_READ_INC(contents, uint8_t, *arg);
+                fprintf(out, "(%i) ", *(uint8_t*)arg);
+                if (*(uint8_t*)arg <= 128) {
+                    for (uint8_t i = 0; i < *arg; i++)
+                        fprintf(out, "+");
                 }
                 else {
-                    for (uint8_t i = 255; i >= arg; i--)
-                        out << '-';
+                    for (uint8_t i = 255; i >= *arg; i--)
+                        fprintf(out, "-");
                 }
                 break;
             case INST_MOVE:
-                if ((int32_t)arg >= 0) {
-                    for (uint32_t i = 0; i < arg; i++)
-                        out << '>';
+                BC_READ_INC(contents, uint32_t, *arg);
+                fprintf(out, "(%i) ", *arg);
+                if (*(int32_t*)arg >= 0) {
+                    for (uint32_t i = 0; i < *arg; i++)
+                        fprintf(out, ">");
                 }
                 else {
-                    for (uint32_t i = UINT32_MAX; i >= arg; i--)
-                        out << '<';
+                    for (uint32_t i = UINT32_MAX; i >= *arg; i--)
+                        fprintf(out, "<");
                 }
                 break;
             case INST_JZ:
-                out << '[';
-                break;
             case INST_JNZ:
-                out << ']';
+                BC_READ_INC(contents, uint32_t, *arg);
+                fprintf(out, "(%i) ", *arg);
+                fprintf(out, "%c", instruction == INST_JZ ? '[' : ']');
                 break;
             case INST_GETCH:
-                out << ',';
-                break;
             case INST_PUTCH:
-                out << '.';
+                BC_READ_INC(contents, uint32_t, *arg);
+                fprintf(out, "(%i) ", *arg);
+                for (uint32_t i = 0; i < *arg; i++)
+                    fprintf(out, "%c", instruction == INST_GETCH ? ',' : '.');
                 break;
         }
-        out << std::endl;
+        fprintf(out, "\n");
     }
 }

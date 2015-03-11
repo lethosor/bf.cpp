@@ -45,10 +45,14 @@ int main (int argc, const char** argv) {
         return 1;
     }
     bf_bytecode* bytecode = bf_compile(src);
+    if (!bytecode) {
+        cerr << "Compile failed" << endl;
+        return 1;
+    }
     bf_vm vm = bf_vm(mem_size);
     vm.eof_flag = (eof == "0") ? BF_EOF_0 : ((eof == "-1") ? BF_EOF_NEG1 : BF_EOF_NO_CHANGE);
     if (disassemble) {
-        bf_disassemble(bytecode, cout);
+        bf_disassemble(bytecode, stdout);
     }
     else {
         bf_run(vm, bytecode);
