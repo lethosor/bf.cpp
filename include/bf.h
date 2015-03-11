@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <vector>
 
-enum bf_instruction : uint32_t {
+enum bf_instruction : uint16_t {
     INST_INC = 0,
     INST_MOVE,
     INST_JZ,
@@ -200,6 +200,7 @@ bf_bytecode* bf_compile (std::string src) {
                 BC_WRITE_INC(out, uint32_t, count);
                 break;
             default:
+                std::cerr << "unrecognized source character: " << ch << std::endl;
                 src_idx++;
                 break;
         }
@@ -220,7 +221,7 @@ bf_bytecode* bf_compile (std::string src) {
             case INST_JNZ:
                 size = (uint32_t)loop_stack.size();
                 if (size) {
-                    *((uint32_t*)(out_start + loop_stack[size - 1]) + 1) = i;
+                    *(uint32_t*)((uint8_t*)(out_start + loop_stack[size - 1]) + sizeof(bf_instruction)) = i;
                     BC_WRITE_INC(out, uint32_t, loop_stack[size - 1]);
                     loop_stack.resize(size - 1);
                 }
@@ -247,7 +248,7 @@ void bf_run (bf_vm& vm, bf_bytecode* bytecode) {
     uint8_t* contents = bytecode->contents;
     uint8_t* contents_start = contents;
     uint8_t* contents_end = contents + bytecode->length;
-    uint32_t instruction;
+    bf_instruction instruction;
     uint32_t* arg = new uint32_t;
     while (contents != contents_end) {
         BC_READ_INC(contents, bf_instruction, instruction);
@@ -316,7 +317,7 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
     }
     uint8_t* contents_start = bytecode->contents;
     uint8_t* contents = contents_start;
-    uint32_t instruction = 0;
+    bf_instruction instruction;
     uint32_t* arg = new uint32_t;
     int i = 1;
     while (contents < contents_start + bytecode->length) {
