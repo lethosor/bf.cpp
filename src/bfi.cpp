@@ -11,11 +11,18 @@ using std::string;
 using std::stringstream;
 using std::vector;
 
+enum bfi_error : int {
+    BFI_ARG_ERROR = 1,
+    BFI_IO_ERROR,
+    BFI_BYTECODE_ERROR,
+    BFI_COMPILE_ERROR
+};
+
 int main (int argc, const char** argv) {
     using namespace TCLAP;
     bool disassemble = false, stat = false;
     int mem_size;
-    string path, eof;
+    string path, eof, out_path;
     try {
         CmdLine cmd("Brainfuck interpreter", ' ', "0.1");
         UnlabeledValueArg<string> path_arg("path", "Path to file", true, "", "Path to file", cmd);
@@ -30,30 +37,56 @@ int main (int argc, const char** argv) {
         ValuesConstraint<string> eof_constraint(eof_flags);
         ValueArg<string> eof_arg("", "eof", "EOF behavior", false, "no-change", &eof_constraint, cmd);
         ValueArg<int> mem_arg("m", "mem", "Memory size", false, 1024, "Memory size", cmd);
+        ValueArg<string> out_path_arg("o", "out", "Bytecode output path", false, "", "path", cmd);
         cmd.parse(argc, argv);
         path = path_arg.getValue();
         disassemble = disassemble_arg.getValue();
         stat = stat_arg.getValue();
         eof = eof_arg.getValue();
+        out_path = out_path_arg.getValue();
         mem_size = mem_arg.getValue();
     }
     catch (ArgException &e) {
         cerr << "error (" << e.argId() << "): " << e.error() << endl;
-        return 2;
+        return BFI_ARG_ERROR;
     }
-    char* src = bf_read_file_contents(path.c_str());
-    if (!src) {
+    bf_file_contents src = bf_read_file(path.c_str());
+    if (!src.contents) {
         cerr << "Could not read from file: " << path << endl;
-        return 1;
+        return BFI_IO_ERROR;
     }
-    bf_bytecode* bytecode = bf_compile(src);
-    if (!bytecode) {
-        cerr << "Compile failed" << endl;
-        return 1;
+    bf_bytecode* bytecode;
+    if (src.length >= 8 && strncmp((char*)src.contents, BF_BYTECODE_HEADER, 4) == 0) {
+        uint32_t src_version;
+        memcpy(&src_version, src.contents + 4, sizeof(src_version));
+        if (src_version != bf_version) {
+            cerr << "Incompatible bytecode version (expected " << bf_version << ", "
+                << src_version << " found)" << endl;
+            return BFI_BYTECODE_ERROR;
+        }
+        bytecode = new bf_bytecode(src.length - 8);
+        memcpy(bytecode->contents, src.contents + 8, src.length - 8);
+    }
+    else {
+        bytecode = bf_compile((char*)src.contents);
+        if (!bytecode) {
+            cerr << "Compile failed" << endl;
+            return BFI_COMPILE_ERROR;
+        }
     }
     if (stat) {
-        cout << "File (including unrecognized characters): " << strlen(src) << " bytes" << endl;
+        cout << "File (including unrecognized characters): " << src.length << " bytes" << endl;
         cout << "Bytecode: " << bytecode->length << " bytes" << endl;
+    }
+    if (out_path.size()) {
+        bf_file_contents out;
+        out.contents = new uint8_t[bytecode->length + 8];
+        memcpy(out.contents, BF_BYTECODE_HEADER, 4);
+        memcpy(out.contents + 4, &bf_version, 4);
+        memcpy(out.contents + 8, bytecode->contents, bytecode->length);
+        out.length = bytecode->length + 8;
+        bf_write_file(out_path.c_str(), out);
+        return 0;
     }
     bf_vm vm = bf_vm(mem_size);
     vm.eof_flag = (eof == "0") ? BF_EOF_0 : ((eof == "-1") ? BF_EOF_NEG1 : BF_EOF_NO_CHANGE);

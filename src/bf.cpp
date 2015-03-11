@@ -1,20 +1,32 @@
 #include "bf.h"
 
-char* bf_read_file_contents (const char* path) {
-    char* out = NULL;
-    long length = 0;
+bf_file_contents bf_read_file (const char* path) {
+    uint8_t* out = NULL;
+    size_t length = 0;
     FILE* f = fopen(path, "rb");
     if (f) {
         fseek(f, 0, SEEK_END);
         length = ftell(f);
         fseek(f, 0, SEEK_SET);
-        out = (char*)malloc(length * sizeof(char));
+        out = (uint8_t*)malloc(length * sizeof(uint8_t));
         if (out) {
             fread(out, 1, length, f);
         }
         fclose(f);
     }
-    return out;
+    bf_file_contents res;
+    res.contents = out;
+    res.length = length;
+    return res;
+}
+
+bool bf_write_file (const char* path, bf_file_contents contents) {
+    FILE* f = fopen(path, "wb");
+    if (!f)
+        return false;
+    fwrite(contents.contents, sizeof(uint8_t), contents.length, f);
+    fclose(f);
+    return true;
 }
 
 bf_bytecode* bf_compile (std::string src) {

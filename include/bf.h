@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <vector>
 
+#define BF_BYTECODE_HEADER "\033bfc"
+extern "C" const uint32_t bf_version = 1;
+
 enum bf_instruction : uint16_t {
     INST_INC = 0,
     INST_MOVE,
@@ -61,7 +64,12 @@ struct bf_bytecode {
 #define BC_WRITE_INC(ptr, type, value) BC_WRITE(ptr, type, value); BC_INC(ptr, sizeof(type))
 
 extern "C" {
-    char* bf_read_file_contents (const char* path);
+    struct bf_file_contents {
+        uint8_t* contents;
+        size_t length;
+    };
+    bf_file_contents bf_read_file (const char* path);
+    bool bf_write_file (const char* path, bf_file_contents contents);
     bf_bytecode* bf_compile (std::string src);
     void bf_run (bf_vm& vm, bf_bytecode* bytecode);
     void bf_disassemble (bf_bytecode* bytecode, FILE* out);
