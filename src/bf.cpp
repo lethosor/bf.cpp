@@ -266,7 +266,6 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
     uint32_t* arg = new uint32_t;
     int i = 1;
     while (contents < contents_start + bytecode->length) {
-        fprintf(out, "%p\n", contents);
         fprintf(out, "inst #%-3i idx=%-4li: ", i++, contents - contents_start);
         BC_READ_INC(contents, bf_instruction, instruction);
         fprintf(out, "%02i %s:   ", instruction,
