@@ -29,7 +29,7 @@ bool bf_write_file (const char* path, bf_file_contents contents) {
     return true;
 }
 
-bf_bytecode* bf_compile (std::string src) {
+bf_bytecode* bf_compile (std::string src, std::vector<bf_optimize_fn>* optimize_fns) {
     uint8_t* out = new uint8_t[8 * src.size()];
     uint8_t* out_start = out;
     uint8_t delta;
@@ -150,11 +150,34 @@ bf_bytecode* bf_compile (std::string src) {
                 break;
         }
     }
+
     size_t out_size = out - out_start;
+    bf_bytecode* bc_out = new bf_bytecode(out_size);
+    memcpy(bc_out->contents, out_start, out_size * sizeof(uint8_t));
+
+    if (optimize_fns) {
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (size_t i = 0; i < optimize_fns->size(); i++) {
+                bf_optimize_fn func = (*optimize_fns)[i];
+                bf_bytecode* bc_in = bc_out;
+                bc_out = new bf_bytecode(bc_in->length);
+                func(bc_in, bc_out);
+                if (bc_in->length != bc_out->length)
+                    changed = true;
+                else if (memcmp(bc_in->contents, bc_out->contents, bc_in->length) != 0)
+                    changed = true;
+                delete bc_in;
+            }
+        }
+    }
+
     std::vector<uint32_t> loop_stack;
-    out = out_start;
-    while (out < out_start + out_size) {
-        uint32_t i = out - out_start;
+    out = bc_out->contents;
+    out_start = out;
+    while (out < bc_out->contents + bc_out->length) {
+        uint32_t i = out - bc_out->contents;
         bf_instruction instruction;
         uint32_t size;
         BC_READ_INC(out, bf_instruction, instruction);
@@ -184,9 +207,50 @@ bf_bytecode* bf_compile (std::string src) {
                 break;
         }
     }
-    bf_bytecode* bytecode = new bf_bytecode(out_size);
-    memcpy(bytecode->contents, out_start, out_size * sizeof(uint8_t));
-    return bytecode;
+    return bc_out;
+}
+
+void bf_optimize_remove_duplicates (bf_bytecode* bc_in, bf_bytecode* bc_out) {
+    uint8_t* in = bc_in->contents;
+    uint8_t* out = bc_out->contents;
+    bf_instruction last = (bf_instruction)-1, cur = (bf_instruction)-2;
+    uint32_t* arg = new uint32_t;
+    while (in < bc_in->contents + bc_in->length) {
+        BC_READ_INC(in, bf_instruction, cur);
+        switch (cur) {
+            case INST_INC:
+            case INST_SET:
+                BC_READ_INC(in, uint8_t, *arg);
+                if (cur == last) {
+                    uint8_t* dest = out - sizeof(uint8_t);
+                    *dest = (cur == INST_INC) ? (*dest + *(uint8_t*)arg) : *(uint8_t*)arg;
+                }
+                else {
+                    BC_WRITE_INC(out, bf_instruction, cur);
+                    BC_WRITE_INC(out, uint8_t, *arg);
+                }
+                break;
+            case INST_MOVE:
+            case INST_PUTCH:
+            case INST_GETCH:
+                BC_READ_INC(in, uint32_t, *arg);
+                if (cur == last) {
+                    *(out - sizeof(uint32_t)) += *arg;
+                }
+                else {
+                    BC_WRITE_INC(out, bf_instruction, cur);
+                    BC_WRITE_INC(out, uint32_t, *arg);
+                }
+                break;
+            default:
+                BC_READ_INC(in, uint32_t, *arg);
+                BC_WRITE_INC(out, bf_instruction, cur);
+                BC_WRITE_INC(out, uint32_t, *arg);
+                break;
+        }
+        last = cur;
+    }
+    bc_out->length = out - bc_out->contents;
 }
 
 void bf_run (bf_vm& vm, bf_bytecode* bytecode) {

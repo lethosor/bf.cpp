@@ -68,7 +68,10 @@ int main (int argc, const char** argv) {
         memcpy(bytecode->contents, src.contents + 8, src.length - 8);
     }
     else {
-        bytecode = bf_compile((char*)src.contents);
+        vector<bf_optimize_fn> funcs;
+        funcs.push_back(bf_optimize_remove_duplicates);
+        string src_contents((char*)src.contents, src.length);
+        bytecode = bf_compile(src_contents, &funcs);
         if (!bytecode) {
             cerr << "Compile failed" << endl;
             return BFI_COMPILE_ERROR;

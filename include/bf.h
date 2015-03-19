@@ -57,11 +57,15 @@ struct bf_bytecode {
     }
 };
 
+typedef void(*bf_optimize_fn)(bf_bytecode*, bf_bytecode*);
+
 #define BC_INC(ptr, delta) ptr = (uint8_t*)ptr + delta
 #define BC_READ(ptr, type, dest) dest = *((type*)ptr)
 #define BC_READ_INC(ptr, type, dest) BC_READ(ptr, type, dest); BC_INC(ptr, sizeof(type))
 #define BC_WRITE(ptr, type, value) *((type*)ptr) = value
 #define BC_WRITE_INC(ptr, type, value) BC_WRITE(ptr, type, value); BC_INC(ptr, sizeof(type))
+
+#define DECLARE_OPTIMIZE_FN(name) void bf_optimize_##name(bf_bytecode*, bf_bytecode*)
 
 extern "C" {
     struct bf_file_contents {
@@ -70,7 +74,10 @@ extern "C" {
     };
     bf_file_contents bf_read_file (const char* path);
     bool bf_write_file (const char* path, bf_file_contents contents);
-    bf_bytecode* bf_compile (std::string src);
+    bf_bytecode* bf_compile (std::string src, std::vector<bf_optimize_fn>* optimize_fns);
+    void bf_optimize (bf_bytecode* in, bf_bytecode* out, bf_optimize_fn func);
     void bf_run (bf_vm& vm, bf_bytecode* bytecode);
     void bf_disassemble (bf_bytecode* bytecode, FILE* out);
+
+    DECLARE_OPTIMIZE_FN(remove_duplicates);
 }
