@@ -20,7 +20,7 @@ enum bfi_error : int {
 
 int main (int argc, const char** argv) {
     using namespace TCLAP;
-    bool disassemble = false, stat = false;
+    bool disassemble = false, stat = false, unknown_fatal = false;
     int mem_size;
     string path, eof, out_path;
     try {
@@ -28,6 +28,7 @@ int main (int argc, const char** argv) {
         UnlabeledValueArg<string> path_arg("path", "Path to file", true, "", "Path to file", cmd);
         SwitchArg disassemble_arg("", "disassemble", "Dump bytecode", cmd, false);
         SwitchArg stat_arg("", "stat", "Display statistics", cmd, false);
+        SwitchArg unknown_fatal_arg("", "unknown-fatal", "Abort on unknown instructions", cmd, false);
         vector<string> eof_flags;
         eof_flags.push_back("0");
         eof_flags.push_back("-1");
@@ -42,6 +43,7 @@ int main (int argc, const char** argv) {
         path = path_arg.getValue();
         disassemble = disassemble_arg.getValue();
         stat = stat_arg.getValue();
+        unknown_fatal = unknown_fatal_arg.getValue();
         eof = eof_arg.getValue();
         out_path = out_path_arg.getValue();
         mem_size = mem_arg.getValue();
@@ -92,7 +94,8 @@ int main (int argc, const char** argv) {
         return 0;
     }
     bf_vm vm = bf_vm(mem_size);
-    vm.eof_flag = (eof == "0") ? BF_EOF_0 : ((eof == "-1") ? BF_EOF_NEG1 : BF_EOF_NO_CHANGE);
+    vm.opts.eof_flag = (eof == "0") ? BF_EOF_0 : ((eof == "-1") ? BF_EOF_NEG1 : BF_EOF_NO_CHANGE);
+    vm.opts.unknown_fatal = unknown_fatal;
     if (disassemble) {
         bf_disassemble(bytecode, stdout);
     }

@@ -31,9 +31,13 @@ struct bf_vm {
     uint32_t mem_size;
     uint32_t mem_ptr;
     uint8_t* mem;
-    bf_eof_flag eof_flag;
+    struct {
+        bf_eof_flag eof_flag;
+        bool unknown_fatal;
+    } opts;
     bf_vm(uint32_t _mem_size) {
-        eof_flag = BF_EOF_NO_CHANGE;
+        opts.eof_flag = BF_EOF_NO_CHANGE;
+        opts.unknown_fatal = false;
         mem_size = _mem_size;
         mem_ptr = 0;
         mem = new uint8_t[mem_size];

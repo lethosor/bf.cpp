@@ -294,9 +294,9 @@ void bf_run (bf_vm& vm, bf_bytecode* bytecode) {
                     if (ch != -1)
                         vm.mem[vm.mem_ptr] = ch;
                     else {
-                        if (vm.eof_flag == BF_EOF_0)
+                        if (vm.opts.eof_flag == BF_EOF_0)
                             vm.mem[vm.mem_ptr] = 0;
-                        else if (vm.eof_flag == BF_EOF_NEG1)
+                        else if (vm.opts.eof_flag == BF_EOF_NEG1)
                             vm.mem[vm.mem_ptr] = -1;
                     }
                 }
@@ -306,7 +306,10 @@ void bf_run (bf_vm& vm, bf_bytecode* bytecode) {
                 vm.mem[vm.mem_ptr] = *(uint8_t*)arg;
                 break;
             default:
-                std::cerr << "warn: unrecognized instruction: " << instruction << std::endl;
+                std::cerr << (vm.opts.unknown_fatal ? "fatal" : "warn")
+                    << ": unrecognized instruction: " << instruction << std::endl;
+                if (vm.opts.unknown_fatal)
+                    return;
                 contents++;
                 break;
         }
