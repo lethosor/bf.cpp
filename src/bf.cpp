@@ -328,6 +328,7 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
     uint8_t* contents = contents_start;
     bf_instruction instruction;
     uint32_t* arg = new uint32_t;
+    uint32_t maxarg = 0;
     int i = 1;
     while (contents < contents_start + bytecode->length) {
         fprintf(out, "inst #%-3i idx=%-4li: ", i++, contents - contents_start);
@@ -356,15 +357,20 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
                 break;
             case INST_MOVE:
                 BC_READ_INC(contents, uint32_t, *arg);
+                maxarg = *arg;
                 fprintf(out, "(%i) ", *arg);
                 if (*(int32_t*)arg >= 0) {
-                    for (uint32_t i = 0; i < *arg; i++)
+                    maxarg = (*arg > 255) ? 255 : *arg;
+                    for (uint32_t i = 0; i < maxarg; i++)
                         fprintf(out, ">");
                 }
                 else {
-                    for (uint32_t i = UINT32_MAX; i >= *arg; i--)
+                    maxarg = (*arg < UINT32_MAX - 255) ? UINT32_MAX - 255 : *arg;
+                    for (uint32_t i = UINT32_MAX; i >= maxarg; i--)
                         fprintf(out, "<");
                 }
+                if (maxarg != *arg)
+                    printf(" (truncated)");
                 break;
             case INST_JZ:
             case INST_JNZ:
