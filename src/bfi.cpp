@@ -20,13 +20,19 @@ enum bfi_error : int {
 
 int main (int argc, const char** argv) {
     using namespace TCLAP;
-    bool disassemble = false, stat = false, unknown_fatal = false;
+    bool disassemble = false,
+        dump_c = false,
+        stat = false,
+        unknown_fatal = false;
     int mem_size;
-    string path, eof, out_path;
+    string path,
+        eof,
+        out_path;
     try {
         CmdLine cmd("Brainfuck interpreter", ' ', "0.1");
         UnlabeledValueArg<string> path_arg("path", "Path to file", true, "", "Path to file", cmd);
-        SwitchArg disassemble_arg("", "disassemble", "Dump bytecode", cmd, false);
+        SwitchArg disassemble_arg("d", "disassemble", "Dump bytecode", cmd, false);
+        SwitchArg dump_c_arg("c", "dump-c", "Dump bytecode", cmd, false);
         SwitchArg stat_arg("", "stat", "Display statistics", cmd, false);
         SwitchArg unknown_fatal_arg("", "unknown-fatal", "Abort on unknown instructions", cmd, false);
         vector<string> eof_flags;
@@ -42,6 +48,7 @@ int main (int argc, const char** argv) {
         cmd.parse(argc, argv);
         path = path_arg.getValue();
         disassemble = disassemble_arg.getValue();
+        dump_c = dump_c_arg.getValue();
         stat = stat_arg.getValue();
         unknown_fatal = unknown_fatal_arg.getValue();
         eof = eof_arg.getValue();
@@ -99,6 +106,8 @@ int main (int argc, const char** argv) {
     if (disassemble) {
         bf_disassemble(bytecode, stdout);
     }
+    else if (dump_c)
+        bf_dump_c(bytecode, stdout);
     else {
         bf_run(vm, bytecode);
     }

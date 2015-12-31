@@ -82,6 +82,7 @@ extern "C" {
     void bf_optimize (bf_bytecode* in, bf_bytecode* out, bf_optimize_fn func);
     void bf_run (bf_vm& vm, bf_bytecode* bytecode);
     void bf_disassemble (bf_bytecode* bytecode, FILE* out);
+    void bf_dump_c (bf_bytecode* bytecode, FILE* out);
 
     DECLARE_OPTIMIZE_FN(remove_duplicates);
 }

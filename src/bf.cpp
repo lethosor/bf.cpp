@@ -392,3 +392,66 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
         fprintf(out, "\n");
     }
 }
+
+static const char* c_start =
+"#include <unistd.h>\n"
+"#include <stdint.h>\n"
+"uint8_t r[65536],*e=r;\n"
+"int main(){\n";
+static const char* c_end =
+"  return 0;\n"
+"}\n";
+
+void bf_dump_c (bf_bytecode* bytecode, FILE* out) {
+    fprintf(out, "%s", c_start);
+    uint8_t* contents_start = bytecode->contents;
+    uint8_t* contents = contents_start;
+    bf_instruction instruction;
+    uint32_t* arg = new uint32_t;
+    int level = 1;
+    #define indent(level) for (int i##__LINE__ = level; i##__LINE__ > 0; i##__LINE__--) { fprintf(out, " "); }
+    while (contents < contents_start + bytecode->length) {
+        BC_READ_INC(contents, bf_instruction, instruction);
+        switch (instruction) {
+            case INST_INC:
+            case INST_SET:
+                BC_READ_INC(contents, uint8_t, *arg);
+                indent(level);
+                fprintf(out, "*e%s%i;\n", (instruction == INST_SET) ? "=" : "+=", (int)(*(uint8_t*)arg));
+                break;
+            case INST_MOVE:
+                BC_READ_INC(contents, uint32_t, *arg);
+                indent(level);
+                if (*arg > INT32_MAX) {
+                    fprintf(out, "e-=%u;\n", UINT32_MAX - *arg + 1);
+                }
+                else {
+                    fprintf(out, "e+=%u;\n", *arg);
+                }
+                break;
+            case INST_JZ:
+                BC_INC(contents, sizeof(uint32_t));
+                indent(level++);
+                fprintf(out, "while(*e){\n");
+                break;
+            case INST_JNZ:
+                BC_INC(contents, sizeof(uint32_t));
+                indent(--level);
+                fprintf(out, "}\n");
+                break;
+            case INST_GETCH:
+            case INST_PUTCH:
+                BC_READ_INC(contents, uint32_t, *arg);
+                for (uint32_t i = 0; i < *arg; i++) {
+                    indent(level);
+                    fprintf(out, "%s(%i, e, 1);\n",
+                        (instruction == INST_GETCH) ? "read" : "write",
+                        (instruction == INST_GETCH) ? 0 : 1);
+                }
+                break;
+        }
+    }
+    fprintf(out, "%s", c_end);
+    delete arg;
+    #undef indent
+}
