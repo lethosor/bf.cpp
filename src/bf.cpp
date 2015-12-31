@@ -334,20 +334,20 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
     uint32_t maxarg = 0;
     int i = 1;
     while (contents < contents_start + bytecode->length) {
-        fprintf(out, "inst #%-3i idx=%-4li: ", i++, contents - contents_start);
+        fprintf(out, "inst #%-3i idx=%-4lli: ", i++, int64_t(contents - contents_start));
         BC_READ_INC(contents, bf_instruction, instruction);
-        fprintf(out, "%02i %s:   ", instruction,
+        fprintf(out, "%02i %s ", instruction,
             imap.find(instruction) != imap.end() ? imap[instruction] : "?????");
         switch (instruction) {
             case INST_SET:
                 BC_READ_INC(contents, uint8_t, *arg);
-                fprintf(out, "(%i) ", *(uint8_t*)arg);
+                fprintf(out, "%6i ", *(uint8_t*)arg);
                 fprintf(out, "[-]");
                 // fallthru
             case INST_INC:
                 if (instruction != INST_SET) {
                     BC_READ_INC(contents, uint8_t, *arg);
-                    fprintf(out, "(%i) ", *(uint8_t*)arg);
+                    fprintf(out, "%6i ", *(uint8_t*)arg);
                 }
                 if (*(uint8_t*)arg <= 128) {
                     for (uint8_t i = 0; i < *arg; i++)
@@ -361,7 +361,7 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
             case INST_MOVE:
                 BC_READ_INC(contents, uint32_t, *arg);
                 maxarg = *arg;
-                fprintf(out, "(%i) ", *arg);
+                fprintf(out, "%6i ", *arg);
                 if (*(int32_t*)arg >= 0) {
                     maxarg = (*arg > 255) ? 255 : *arg;
                     for (uint32_t i = 0; i < maxarg; i++)
@@ -378,13 +378,13 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
             case INST_JZ:
             case INST_JNZ:
                 BC_READ_INC(contents, uint32_t, *arg);
-                fprintf(out, "(%i) ", *arg);
+                fprintf(out, "%6i ", *arg);
                 fprintf(out, "%c", instruction == INST_JZ ? '[' : ']');
                 break;
             case INST_GETCH:
             case INST_PUTCH:
                 BC_READ_INC(contents, uint32_t, *arg);
-                fprintf(out, "(%i) ", *arg);
+                fprintf(out, "%6i ", *arg);
                 for (uint32_t i = 0; i < *arg; i++)
                     fprintf(out, "%c", instruction == INST_GETCH ? ',' : '.');
                 break;
