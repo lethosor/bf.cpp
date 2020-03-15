@@ -399,7 +399,7 @@ static const char* c_start =
 "uint8_t r[65536],*e=r;\n"
 "int main(){\n";
 static const char* c_end =
-"  return 0;\n"
+" return 0;\n"
 "}\n";
 
 void bf_dump_c (bf_bytecode* bytecode, FILE* out) {

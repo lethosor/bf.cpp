@@ -32,7 +32,7 @@ int main (int argc, const char** argv) {
         CmdLine cmd("Brainfuck interpreter", ' ', "0.1");
         UnlabeledValueArg<string> path_arg("path", "Path to file", true, "", "Path to file", cmd);
         SwitchArg disassemble_arg("d", "disassemble", "Dump bytecode", cmd, false);
-        SwitchArg dump_c_arg("c", "dump-c", "Dump bytecode", cmd, false);
+        SwitchArg dump_c_arg("c", "dump-c", "Dump C translation", cmd, false);
         SwitchArg stat_arg("", "stat", "Display statistics", cmd, false);
         SwitchArg unknown_fatal_arg("", "unknown-fatal", "Abort on unknown instructions", cmd, false);
         vector<string> eof_flags;
