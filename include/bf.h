@@ -1,11 +1,12 @@
 #include <fstream>
+#include <inttypes.h>
 #include <iostream>
 #include <map>
 #include <sstream>
-#include <string>
-#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
+#include <string>
 #include <vector>
 
 #define BF_BYTECODE_HEADER "\033bfc"

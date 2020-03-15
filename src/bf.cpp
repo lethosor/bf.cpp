@@ -10,7 +10,7 @@ bf_file_contents bf_read_file (const char* path) {
         fseek(f, 0, SEEK_SET);
         out = (uint8_t*)malloc(length * sizeof(uint8_t));
         if (out) {
-            fread(out, 1, length, f);
+            length = fread(out, 1, length, f);
         }
         fclose(f);
     }
@@ -334,7 +334,7 @@ void bf_disassemble (bf_bytecode* bytecode, FILE* out) {
     uint32_t maxarg = 0;
     int i = 1;
     while (contents < contents_start + bytecode->length) {
-        fprintf(out, "inst #%-3i idx=%-4lli: ", i++, int64_t(contents - contents_start));
+        fprintf(out, "inst #%-3i idx=%-4" PRId64 ": ", i++, int64_t(contents - contents_start));
         BC_READ_INC(contents, bf_instruction, instruction);
         fprintf(out, "%02i %s ", instruction,
             imap.find(instruction) != imap.end() ? imap[instruction] : "?????");
